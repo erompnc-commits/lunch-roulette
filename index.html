@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>점심 메뉴 룰렛</title>
+<meta name="description" content="오늘 점심 뭐 먹지? 돌려서 나온 대로 먹기.">
+<meta property="og:title" content="점심 메뉴 룰렛">
+<meta property="og:description" content="오늘 점심 뭐 먹지? 돌려서 나온 대로 먹기.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍽️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #FFF8EE;            /* 쌀밥 */
+    --check: rgba(226, 58, 66, .07);
+    --ink: #1F1B18;           /* 김 */
+    --red: #E23A42;           /* 고추장 */
+    --red-deep: #A8232B;
+    --yellow: #FFD23F;        /* 계란 노른자 */
+    --paper: #FFFFFF;
+    --muted: #7A6F66;
+    --line: #E7DED2;
+    --focus: #1E64D6;
+    --display: "Do Hyeon", "Noto Sans KR", sans-serif;
+    --body: "Noto Sans KR", system-ui, -apple-system, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    font-family: var(--body);
+    color: var(--ink);
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(90deg, var(--check) 50%, transparent 50%),
+      linear-gradient(var(--check) 50%, transparent 50%);
+    background-size: 34px 34px;
+    min-height: 100vh;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    overflow-x: hidden;
+  }
+
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+  button { font-family: inherit; }
+
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+
+  main {
+    width: 100%;
+    max-width: 580px;
+    margin: 0 auto;
+    padding: 36px 16px 96px;
+    text-align: center;
+  }
+
+  /* 상단 바: 소리 토글 */
+  .topbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 8px;
+  }
+  .sound {
+    appearance: none;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 6px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    min-height: 40px;
+  }
+  .sound[aria-pressed="false"] { color: var(--muted); border-color: var(--line); }
+
+  /* 헤드라인 */
+  h1 {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: clamp(40px, 9vw, 58px);
+    line-height: 1.1;
+    margin: 0 0 8px;
+    letter-spacing: -0.01em;
+  }
+  .lede {
+    margin: 0 0 30px;
+    color: var(--muted);
+    font-size: 16px;
+  }
+
+  /* 룰렛 */
+  .wheel-wrap {
+    position: relative;
+    width: min(92vw, 470px);
+    aspect-ratio: 1 / 1;
+    margin: 0 auto;
+  }
+  .wheel-wrap canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: var(--paper);
+    box-shadow:
+      0 0 0 10px var(--paper),
+      0 0 0 13px var(--ink),
+      0 24px 50px -18px rgba(31, 27, 24, .5);
+    will-change: transform;
+  }
+  .pointer {
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    width: 46px;
+    height: 54px;
+    transform: translateX(-50%);
+    transform-origin: 50% 20%;
+    filter: drop-shadow(0 4px 4px rgba(31, 27, 24, .35));
+    z-index: 2;
+    pointer-events: none;
+  }
+  .pointer.tick { animation: ptick 110ms ease-out; }
+  @keyframes ptick {
+    0%   { transform: translateX(-50%) rotate(0deg); }
+    40%  { transform: translateX(-50%) rotate(-14deg); }
+    100% { transform: translateX(-50%) rotate(0deg); }
+  }
+
+  .hub {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 27%;
+    aspect-ratio: 1 / 1;
+    transform: translate(-50%, -50%);
+    border-radius: 50%;
+    border: 6px solid var(--paper);
+    background: var(--red);
+    color: #fff;
+    font-family: var(--display);
+    font-size: clamp(18px, 5.2vw, 27px);
+    line-height: 1.1;
+    white-space: pre-line;
+    word-break: keep-all;
+    cursor: pointer;
+    box-shadow: 0 0 0 3px var(--ink), 0 7px 0 3px var(--red-deep);
+    transition: transform 90ms ease, box-shadow 90ms ease, background-color 150ms ease;
+    z-index: 3;
+    padding: 0;
+  }
+  .hub:hover:not(:disabled) { background: #EC4A52; }
+  .hub:active:not(:disabled) {
+    transform: translate(-50%, calc(-50% + 5px));
+    box-shadow: 0 0 0 3px var(--ink), 0 2px 0 3px var(--red-deep);
+  }
+  .hub:disabled { cursor: default; background: var(--red-deep); }
+
+  /* 결과 전표 */
+  .result {
+    position: relative;
+    margin: 42px auto 0;
+    max-width: 440px;
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    border-radius: 14px;
+    padding: 28px 24px 24px;
+    text-align: center;
+    box-shadow: 0 16px 36px -24px rgba(31, 27, 24, .45);
+  }
+  .result[hidden] { display: none; }
+  .result::before {
+    /* 전표 상단 절취선 */
+    content: "";
+    position: absolute;
+    left: 18px; right: 18px; top: 14px;
+    border-top: 2px dashed var(--line);
+  }
+  .result-kicker {
+    margin: 10px 0 2px;
+    font-size: 15px;
+    color: var(--muted);
+  }
+  .result-name {
+    margin: 0;
+    font-family: var(--display);
+    font-size: clamp(40px, 10vw, 60px);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    word-break: keep-all;
+  }
+  .result-note {
+    margin: 4px 0 20px;
+    font-size: 16px;
+    color: var(--muted);
+  }
+  .stamp {
+    position: absolute;
+    right: 16px;
+    top: 18px;
+    font-family: var(--display);
+    font-size: 24px;
+    line-height: 1;
+    color: var(--red);
+    border: 3px solid var(--red);
+    outline: 2px solid var(--red);
+    outline-offset: 3px;
+    border-radius: 8px;
+    padding: 6px 9px 5px;
+    letter-spacing: .08em;
+    transform: rotate(-12deg);
+    opacity: .92;
+    mix-blend-mode: multiply;
+    pointer-events: none;
+  }
+  .result.show .stamp { animation: stamp 480ms cubic-bezier(.2, 1.4, .4, 1) both; }
+  @keyframes stamp {
+    0%   { transform: rotate(-12deg) scale(2.8); opacity: 0; }
+    55%  { transform: rotate(-12deg) scale(.94); opacity: 1; }
+    100% { transform: rotate(-12deg) scale(1); opacity: .92; }
+  }
+  .result.show .result-name { animation: pop 420ms cubic-bezier(.2, 1.2, .4, 1) both; }
+  @keyframes pop {
+    0%   { transform: scale(.85); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+
+  .result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+  .btn {
+    appearance: none;
+    border: 2px solid var(--ink);
+    background: var(--paper);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    min-height: 44px;
+    transition: background-color 120ms ease, transform 90ms ease;
+  }
+  .btn:hover { background: #FFF3DA; }
+  .btn:active { transform: translateY(1px); }
+  .btn-primary { background: var(--ink); color: #fff; }
+  .btn-primary:hover { background: #3A332E; }
+
+  /* 메뉴 편집 */
+  .menu {
+    margin-top: 56px;
+    padding-top: 28px;
+    border-top: 2px solid var(--ink);
+  }
+  .menu h2 {
+    font-family: var(--display);
+    font-weight: 400;
+    font-size: 28px;
+    margin: 0 0 4px;
+  }
+  .menu-help {
+    margin: 0 0 18px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .chips {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 18px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+  }
+  .chips li {
+    display: inline-flex;
+    align-items: stretch;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: var(--paper);
+    overflow: hidden;
+  }
+  .chip {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    padding: 8px 6px 8px 14px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    min-height: 42px;
+  }
+  .chip[aria-pressed="false"] {
+    color: var(--muted);
+    text-decoration: line-through;
+    text-decoration-thickness: 2px;
+  }
+  .chips li:has(.chip[aria-pressed="false"]) { border-color: var(--line); background: transparent; }
+  .chip-x {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 20px;
+    line-height: 1;
+    padding: 0 12px 0 6px;
+    cursor: pointer;
+  }
+  .chip-x:hover { color: var(--red); }
+  .chip:focus-visible, .chip-x:focus-visible { outline-offset: -3px; }
+
+  .add {
+    display: flex;
+    gap: 8px;
+    justify-content: center;
+    margin: 0 auto 14px;
+    max-width: 360px;
+  }
+  .add input {
+    flex: 1;
+    min-width: 0;
+    font: inherit;
+    font-size: 16px;
+    padding: 10px 14px;
+    border: 2px solid var(--ink);
+    border-radius: 999px;
+    background: var(--paper);
+    color: var(--ink);
+    min-height: 44px;
+  }
+  .add input::placeholder { color: #A89C92; }
+  .link {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--muted);
+    font-size: 14px;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+    padding: 8px;
+  }
+  .link:hover { color: var(--ink); }
+
+  /* 토스트 */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    transform: translate(-50%, 20px);
+    background: var(--ink);
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-size: 14px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 160ms ease, transform 160ms ease;
+    max-width: calc(100vw - 32px);
+  }
+  .toast.on { opacity: 1; transform: translate(-50%, 0); }
+
+  footer {
+    margin-top: 48px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .pointer.tick, .result.show .stamp, .result.show .result-name { animation: none; }
+    .hub, .btn, .toast { transition: none; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="topbar">
+    <button class="sound" id="soundBtn" type="button" aria-pressed="true">🔊 소리 켜짐</button>
+  </div>
+
+  <h1>오늘 점심 뭐 먹지?</h1>
+  <p class="lede">고민은 그만. 돌려서 나온 대로 먹기.</p>
+
+  <div class="wheel-wrap">
+    <svg class="pointer" id="pointer" viewBox="0 0 46 54" aria-hidden="true">
+      <path d="M23 52 L3 10 Q3 2 11 2 L35 2 Q43 2 43 10 Z" fill="#1F1B18"/>
+      <path d="M23 44 L9 12 Q9 8 13 8 L33 8 Q37 8 37 12 Z" fill="#FFD23F"/>
+    </svg>
+    <canvas id="wheel" aria-hidden="true"></canvas>
+    <button class="hub" id="spinBtn" type="button">돌리기</button>
+  </div>
+
+  <p class="sr-only" id="live" aria-live="polite"></p>
+
+  <section class="result" id="result" hidden>
+    <div class="stamp" aria-hidden="true">확정</div>
+    <p class="result-kicker">오늘의 점심은</p>
+    <p class="result-name"><span id="resultEmoji"></span> <span id="resultName"></span></p>
+    <p class="result-note" id="resultNote"></p>
+    <div class="result-actions">
+      <button class="btn btn-primary" id="againBtn" type="button">다시 돌리기</button>
+      <button class="btn" id="excludeBtn" type="button">이건 빼고 다시</button>
+      <button class="btn" id="copyBtn" type="button">결과 복사</button>
+    </div>
+  </section>
+
+  <section class="menu" aria-labelledby="menuTitle">
+    <h2 id="menuTitle">메뉴 목록</h2>
+    <p class="menu-help"><span id="count"></span> 메뉴를 누르면 룰렛에서 빼거나 다시 넣을 수 있어요.</p>
+    <ul class="chips" id="chips"></ul>
+    <form class="add" id="addForm" autocomplete="off">
+      <label class="sr-only" for="newMenu">추가할 메뉴 이름</label>
+      <input id="newMenu" type="text" placeholder="메뉴 추가 (예: 국밥)" maxlength="12" required>
+      <button class="btn" type="submit">추가</button>
+    </form>
+    <button class="link" id="resetBtn" type="button">기본 메뉴 10개로 되돌리기</button>
+  </section>
+
+  <footer>결과는 매번 새로 뽑히는 난수로 정해집니다. 메뉴 목록은 이 브라우저에 저장돼요.</footer>
+</main>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  const DEFAULT_MENUS = [
+    { name: '김치찌개', emoji: '🍲', note: '국물이 당기는 날엔 역시 이거' },
+    { name: '돈까스',   emoji: '🍱', note: '바삭한 소리부터 맛있는 점심' },
+    { name: '비빔밥',   emoji: '🥗', note: '골고루 비벼서 든든하게' },
+    { name: '짜장면',   emoji: '🍜', note: '고민될 땐 역시 짜장' },
+    { name: '제육볶음', emoji: '🌶️', note: '매콤하게, 밥은 두 공기' },
+    { name: '냉면',     emoji: '🧊', note: '시원하게 후루룩' },
+    { name: '마라탕',   emoji: '🥘', note: '얼얼하게 땀 한 번 빼기' },
+    { name: '초밥',     emoji: '🍣', note: '오늘은 조금 사치스럽게' },
+    { name: '햄버거',   emoji: '🍔', note: '빠르고 든든하게 한 손으로' },
+    { name: '파스타',   emoji: '🍝', note: '분위기 내는 점심' },
+  ];
+
+  // 조각 색: [배경, 글자]. 밝은 색과 어두운 색을 번갈아 배치.
+  const WEDGES = [
+    ['#E23A42', '#FFFFFF'], // 고추장
+    ['#FFD23F', '#1F1B18'], // 계란
+    ['#2F8F6B', '#FFFFFF'], // 시금치
+    ['#FFF1D0', '#1F1B18'], // 쌀밥
+    ['#F2794B', '#1F1B18'], // 당근
+    ['#2B2F3A', '#FFFFFF'], // 김
+    ['#F8B4C4', '#1F1B18'], // 분홍 소시지
+    ['#7A4E9C', '#FFFFFF'], // 가지
+    ['#FFB030', '#1F1B18'], // 단무지
+    ['#7A4A2B', '#FFFFFF'], // 간장
+  ];
+
+  const EMOJI_HINTS = [
+    ['치킨', '🍗'], ['피자', '🍕'], ['샐러드', '🥗'], ['라멘', '🍜'], ['국수', '🍜'],
+    ['우동', '🍜'], ['냉면', '🧊'], ['국밥', '🍚'], ['덮밥', '🍚'], ['김밥', '🍙'],
+    ['떡볶이', '🌶️'], ['샌드위치', '🥪'], ['타코', '🌮'], ['카레', '🍛'], ['빵', '🥐'],
+    ['찌개', '🍲'], ['탕', '🍲'], ['국', '🍲'], ['스테이크', '🥩'], ['고기', '🥩'],
+    ['삼겹', '🥓'], ['회', '🐟'], ['생선', '🐟'], ['도시락', '🍱'], ['면', '🍜'],
+    ['밥', '🍚'], ['버거', '🍔'], ['초밥', '🍣'], ['파스타', '🍝'], ['만두', '🥟'],
+    ['죽', '🥣'], ['커피', '☕'], ['케이크', '🍰'], ['쌀국수', '🍜'],
+  ];
+
+  const STORAGE_KEY = 'lunch-roulette-v1';
+  const SOUND_KEY = 'lunch-roulette-sound';
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  const $ = (id) => document.getElementById(id);
+  const canvas = $('wheel');
+  const ctx = canvas.getContext('2d');
+  const pointer = $('pointer');
+  const spinBtn = $('spinBtn');
+  const result = $('result');
+  const resultEmoji = $('resultEmoji');
+  const resultName = $('resultName');
+  const resultNote = $('resultNote');
+  const live = $('live');
+  const chips = $('chips');
+  const count = $('count');
+  const addForm = $('addForm');
+  const newMenu = $('newMenu');
+  const toastEl = $('toast');
+  const soundBtn = $('soundBtn');
+
+  let menus = load();
+  let angle = 0;          // 현재 회전각(도)
+  let spinning = false;
+  let lastResult = null;
+  let soundOn = localStorage.getItem(SOUND_KEY) !== 'off';
+  let toastTimer = 0;
+
+  // ---------- 저장/불러오기 ----------
+  function load() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length) {
+          return parsed
+            .filter((m) => m && typeof m.name === 'string')
+            .map((m) => ({ name: m.name, emoji: m.emoji || '🍽️', note: m.note || '', on: m.on !== false }));
+        }
+      }
+    } catch (e) { /* 저장소를 못 쓰면 기본값 */ }
+    return defaults();
+  }
+  function defaults() {
+    return DEFAULT_MENUS.map((m) => ({ ...m, on: true }));
+  }
+  function save() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(menus)); } catch (e) { /* 무시 */ }
+  }
+  const active = () => menus.filter((m) => m.on);
+
+  // ---------- 룰렛 그리기 ----------
+  function resizeCanvas() {
+    const css = canvas.clientWidth || 470;
+    const dpr = Math.min(window.devicePixelRatio || 1, 3);
+    const px = Math.round(Math.min(1500, css * dpr));
+    if (canvas.width !== px) { canvas.width = px; canvas.height = px; }
+    drawWheel();
+  }
+
+  function drawWheel() {
+    const items = active();
+    const n = items.length;
+    const size = canvas.width;
+    const r = size / 2;
+    ctx.clearRect(0, 0, size, size);
+
+    if (n === 0) {
+      ctx.fillStyle = '#FFF1D0';
+      ctx.beginPath(); ctx.arc(r, r, r, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#7A6F66';
+      ctx.font = `${size * 0.05}px "Noto Sans KR", sans-serif`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('메뉴를 추가해 주세요', r, r * 0.6);
+      return;
+    }
+
+    const step = (Math.PI * 2) / n;
+    const hubR = r * 0.27 + size * 0.02;     // 가운데 버튼이 가리는 영역
+    const outer = r * 0.93;
+    const maxW = outer - hubR - size * 0.02;
+
+    for (let i = 0; i < n; i++) {
+      const a0 = -Math.PI / 2 + i * step;
+      const a1 = a0 + step;
+      // 홀수 개일 때 마지막 조각이 첫 조각과 같은 톤이면 한 칸 밀어서 피함
+      let ci = i % WEDGES.length;
+      if (n % 2 === 1 && i === n - 1 && ci % 2 === 0) ci = (ci + 1) % WEDGES.length;
+      const [fill, text] = WEDGES[ci];
+
+      ctx.beginPath();
+      ctx.moveTo(r, r);
+      ctx.arc(r, r, r, a0, a1);
+      ctx.closePath();
+      ctx.fillStyle = fill;
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,.6)';
+      ctx.lineWidth = Math.max(2, size * 0.004);
+      ctx.stroke();
+
+      // 라벨: 조각 가운데 각도로 회전 후 바깥쪽 끝에 오른쪽 정렬
+      const label = `${items[i].emoji} ${items[i].name}`;
+      let fs = Math.min(size * 0.05, (r * step) * 0.55);
+      ctx.save();
+      ctx.translate(r, r);
+      ctx.rotate(a0 + step / 2);
+      ctx.textAlign = 'right';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = text;
+      ctx.font = `${fs}px "Do Hyeon", "Noto Sans KR", sans-serif`;
+      while (ctx.measureText(label).width > maxW && fs > size * 0.018) {
+        fs -= 1;
+        ctx.font = `${fs}px "Do Hyeon", "Noto Sans KR", sans-serif`;
+      }
+      ctx.fillText(label, outer, 0);
+      ctx.restore();
+    }
+
+    // 바깥 테두리
+    ctx.beginPath();
+    ctx.arc(r, r, r - 1, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(31,27,24,.15)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // ---------- 난수 ----------
+  function randInt(n) {
+    if (window.crypto && crypto.getRandomValues) {
+      const buf = new Uint32Array(1);
+      crypto.getRandomValues(buf);
+      return buf[0] % n;
+    }
+    return Math.floor(Math.random() * n);
+  }
+
+  // 현재 각도에서 포인터(12시 방향) 아래에 있는 조각 번호
+  function indexAt(deg, n) {
+    const step = 360 / n;
+    const local = (((360 - (deg % 360)) % 360) + 360) % 360;
+    return Math.floor(local / step) % n;
+  }
+
+  // ---------- 소리 ----------
+  let actx = null;
+  function audio() {
+    if (!soundOn) return null;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      if (actx.state === 'suspended') actx.resume();
+      return actx;
+    } catch (e) { return null; }
+  }
+  function tickSound() {
+    const a = audio(); if (!a) return;
+    const o = a.createOscillator(), g = a.createGain();
+    o.type = 'square'; o.frequency.value = 1700;
+    g.gain.setValueAtTime(0.05, a.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + 0.035);
+    o.connect(g).connect(a.destination);
+    o.start(); o.stop(a.currentTime + 0.04);
+  }
+  function dingSound() {
+    const a = audio(); if (!a) return;
+    [[660, 0], [880, 0.12], [1320, 0.24]].forEach(([f, d]) => {
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = 'triangle'; o.frequency.value = f;
+      const t = a.currentTime + d;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.12, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.35);
+      o.connect(g).connect(a.destination);
+      o.start(t); o.stop(t + 0.4);
+    });
+  }
+
+  // ---------- 돌리기 ----------
+  function spin() {
+    if (spinning) return;
+    const items = active();
+    if (items.length < 2) { toast('메뉴를 2개 이상 넣어 주세요'); return; }
+
+    spinning = true;
+    spinBtn.disabled = true;
+    spinBtn.textContent = '두구두구';
+    result.hidden = true;
+    result.classList.remove('show');
+    audio(); // 사용자 클릭 시점에 오디오 준비
+
+    const n = items.length;
+    const step = 360 / n;
+    const target = randInt(n);
+    const offset = step * (0.15 + 0.7 * Math.random());
+    const current = ((angle % 360) + 360) % 360;
+    const landing = (360 - (target * step + offset)) % 360;
+    const turns = reduced ? 1 : 6 + randInt(3);
+    const delta = ((landing - current + 360) % 360) + turns * 360;
+    const start = angle;
+    const duration = reduced ? 800 : 4600 + randInt(900);
+    const t0 = performance.now();
+    let lastIdx = indexAt(start, n);
+
+    function frame(now) {
+      const t = Math.min(1, (now - t0) / duration);
+      const e = 1 - Math.pow(1 - t, 4);
+      angle = start + delta * e;
+      canvas.style.transform = `rotate(${angle}deg)`;
+      const idx = indexAt(angle, n);
+      if (idx !== lastIdx) {
+        lastIdx = idx;
+        tickSound();
+        if (!reduced) {
+          pointer.classList.remove('tick');
+          void pointer.offsetWidth;
+          pointer.classList.add('tick');
+        }
+      }
+      if (t < 1) requestAnimationFrame(frame);
+      else finish(items[target]);
+    }
+    requestAnimationFrame(frame);
+  }
+
+  function finish(item) {
+    angle = ((angle % 360) + 360) % 360;
+    canvas.style.transform = `rotate(${angle}deg)`;
+    spinning = false;
+    lastResult = item;
+    spinBtn.disabled = false;
+    spinBtn.textContent = '다시\n돌리기';
+
+    resultEmoji.textContent = item.emoji;
+    resultName.textContent = item.name;
+    resultNote.textContent = item.note || '오늘은 이걸로 결정';
+    result.hidden = false;
+    void result.offsetWidth;
+    result.classList.add('show');
+    live.textContent = `오늘의 점심은 ${item.name}`;
+    dingSound();
+    result.scrollIntoView({ behavior: reduced ? 'auto' : 'smooth', block: 'nearest' });
+  }
+
+  // ---------- 메뉴 목록 ----------
+  function renderChips() {
+    chips.innerHTML = '';
+    menus.forEach((m, i) => {
+      const li = document.createElement('li');
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'chip';
+      b.setAttribute('aria-pressed', String(m.on));
+      b.textContent = `${m.emoji} ${m.name}`;
+      b.title = m.on ? '누르면 룰렛에서 뺍니다' : '누르면 룰렛에 다시 넣습니다';
+      b.addEventListener('click', () => {
+        if (spinning) return;
+        m.on = !m.on;
+        save(); renderChips(); drawWheel();
+      });
+      const x = document.createElement('button');
+      x.type = 'button';
+      x.className = 'chip-x';
+      x.setAttribute('aria-label', `${m.name} 삭제`);
+      x.textContent = '×';
+      x.addEventListener('click', () => {
+        if (spinning) return;
+        menus.splice(i, 1);
+        save(); renderChips(); drawWheel();
+        toast(`${m.name} 삭제했어요`);
+      });
+      li.append(b, x);
+      chips.append(li);
+    });
+    const on = active().length;
+    count.textContent = `${menus.length}개 중 ${on}개가 룰렛에 들어 있어요.`;
+  }
+
+  function guessEmoji(name) {
+    for (const [k, e] of EMOJI_HINTS) if (name.includes(k)) return e;
+    return '🍽️';
+  }
+
+  addForm.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    if (spinning) return;
+    const name = newMenu.value.trim().replace(/\s+/g, ' ');
+    if (!name) return;
+    const dup = menus.find((m) => m.name === name);
+    if (dup) {
+      dup.on = true;
+      save(); renderChips(); drawWheel();
+      toast('이미 있는 메뉴라 룰렛에 넣어 뒀어요');
+    } else {
+      menus.push({ name, emoji: guessEmoji(name), note: '직접 추가한 메뉴', on: true });
+      save(); renderChips(); drawWheel();
+      toast(`${name} 추가했어요`);
+    }
+    newMenu.value = '';
+    newMenu.focus();
+  });
+
+  $('resetBtn').addEventListener('click', () => {
+    if (spinning) return;
+    menus = defaults();
+    save(); renderChips(); drawWheel();
+    result.hidden = true;
+    spinBtn.textContent = '돌리기';
+    toast('기본 메뉴 10개로 되돌렸어요');
+  });
+
+  spinBtn.addEventListener('click', spin);
+  $('againBtn').addEventListener('click', spin);
+
+  $('excludeBtn').addEventListener('click', () => {
+    if (spinning || !lastResult) return;
+    const m = menus.find((x) => x === lastResult) || menus.find((x) => x.name === lastResult.name);
+    if (m) m.on = false;
+    save(); renderChips(); drawWheel();
+    if (active().length < 2) { toast('남은 메뉴가 하나뿐이에요'); return; }
+    spin();
+  });
+
+  $('copyBtn').addEventListener('click', async () => {
+    if (!lastResult) return;
+    const text = `오늘 점심은 ${lastResult.emoji} ${lastResult.name}!`;
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('복사했어요. 단톡방에 붙여 넣으세요');
+    } catch (e) {
+      toast(text);
+    }
+  });
+
+  // ---------- 소리 토글 ----------
+  function renderSound() {
+    soundBtn.setAttribute('aria-pressed', String(soundOn));
+    soundBtn.textContent = soundOn ? '🔊 소리 켜짐' : '🔇 소리 꺼짐';
+  }
+  soundBtn.addEventListener('click', () => {
+    soundOn = !soundOn;
+    try { localStorage.setItem(SOUND_KEY, soundOn ? 'on' : 'off'); } catch (e) { /* 무시 */ }
+    renderSound();
+  });
+
+  // ---------- 토스트 ----------
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('on'), 2200);
+  }
+
+  // ---------- 시작 ----------
+  renderSound();
+  renderChips();
+  resizeCanvas();
+  if (document.fonts && document.fonts.load) {
+    document.fonts.load('30px "Do Hyeon"').then(drawWheel).catch(() => {});
+    document.fonts.ready.then(drawWheel).catch(() => {});
+  }
+  if ('ResizeObserver' in window) {
+    new ResizeObserver(resizeCanvas).observe(canvas);
+  } else {
+    window.addEventListener('resize', resizeCanvas);
+  }
+})();
+</script>
+</body>
+</html>
